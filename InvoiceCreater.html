@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Puli IT Solutions</title>
+
+<style>
+  body { font-family: Arial, sans-serif; margin: 40px; color: #333; }
+  h1 { text-align: right; }
+  .section-title { margin-top: 25px; font-weight: bold; text-transform: uppercase; }
+  input, textarea { width: 100%; padding: 6px; margin: 4px 0 12px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  th, td { padding: 8px; }
+  th { background: #f5f5f5; border: 1px solid #ccc; }
+  .right { text-align: right; }
+  .center { text-align: center; }
+  .two-col { display: flex; justify-content: space-between; }
+  .col { width: 48%; }
+
+  /* Remove borders from editable line-item rows */
+  #itemsBody td {
+    border: none !important;
+  }
+
+  /* Keep header borders */
+  #itemsTable thead th {
+    border: 1px solid #ccc !important;
+  }
+
+  /* PRINT STYLES */
+  @media print {
+
+    /* Hide everything */
+    body * {
+      visibility: hidden;
+    }
+
+    /* Show only invoice output */
+    #invoiceArea, #invoiceArea * {
+      visibility: visible;
+    }
+
+    /* Position invoice at top-left */
+    #invoiceArea {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
+    table, td, th {
+      font-size: 12px;
+      padding: 4px;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: auto;
+      overflow: hidden;
+    }
+  }
+</style>
+</head>
+<body>
+
+<h1>INVOICE</h1>
+
+<!-- Editable Inputs -->
+<div class="two-col">
+  <div class="col">
+    <h3>Your Info</h3>
+    <textarea id="yourInfo" rows="6" placeholder="Your Name&#10;Your Address&#10;City, State ZIP&#10;Phone&#10;Email"></textarea>
+  </div>
+
+  <div class="col">
+    <h3>Invoice Details</h3>
+    <label>Invoice #</label>
+    <input id="invoiceNumber" type="text">
+
+    <label>Date</label>
+    <input id="invoiceDate" type="date">
+
+    <label>Bill To</label>
+    <textarea id="billTo" rows="4" placeholder="Client Name&#10;Client Address"></textarea>
+  </div>
+</div>
+
+<h3 class="section-title">Line Items</h3>
+<table id="itemsTable">
+  <thead>
+    <tr>
+      <th>Description</th>
+      <th class="center">Hours</th>
+      <th class="right">Rate</th>
+      <th class="right">Amount</th>
+    </tr>
+  </thead>
+  <tbody id="itemsBody">
+    <tr>
+      <td><input class="desc" placeholder="Work description"></td>
+      <td><input class="hours" type="number" step="0.01"></td>
+      <td><input class="rate" type="number" step="0.01"></td>
+      <td class="right amount">$0.00</td>
+    </tr>
+  </tbody>
+</table>
+
+<button onclick="addRow()">Add Line Item</button>
+
+<h3 class="section-title">Totals</h3>
+<table>
+  <tr>
+    <td class="right">Subtotal:</td>
+    <td class="right" id="subtotal">$0.00</td>
+  </tr>
+  <tr>
+    <td class="right">Discount:</td>
+    <td><input id="discount" type="number" step="0.01" value="0"></td>
+  </tr>
+  <tr>
+    <td class="right">Tax:</td>
+    <td><input id="tax" type="number" step="0.01" value="0"></td>
+  </tr>
+  <tr>
+    <td class="right"><strong>Total:</strong></td>
+    <td class="right" id="total"><strong>$0.00</strong></td>
+  </tr>
+</table>
+
+<h3 class="section-title">Notes</h3>
+<textarea id="message" rows="4" placeholder="Payment instructions or notes"></textarea>
+
+<button onclick="generateInvoice()">Print / Save as PDF</button>
+
+<!-- PRINT-ONLY INVOICE OUTPUT -->
+<div id="invoiceArea" style="display:none;"></div>
+
+<script>
+function addRow() {
+  const row = document.createElement("tr");
+  row.innerHTML = `
+    <td><input class="desc" placeholder="Work description"></td>
+    <td><input class="hours" type="number" step="0.01"></td>
+    <td><input class="rate" type="number" step="0.01"></td>
+    <td class="right amount">$0.00</td>
+  `;
+  document.getElementById("itemsBody").appendChild(row);
+}
+
+document.addEventListener("input", () => {
+  let subtotal = 0;
+  document.querySelectorAll("#itemsBody tr").forEach(row => {
+    const hours = parseFloat(row.querySelector(".hours")?.value || 0);
+    const rate = parseFloat(row.querySelector(".rate")?.value || 0);
+    const amount = hours * rate;
+    row.querySelector(".amount").textContent = "$" + amount.toFixed(2);
+    subtotal += amount;
+  });
+
+  document.getElementById("subtotal").textContent = "$" + subtotal.toFixed(2);
+
+  const discount = parseFloat(document.getElementById("discount").value || 0);
+  const tax = parseFloat(document.getElementById("tax").value || 0);
+  const total = subtotal - discount + tax;
+
+  document.getElementById("total").textContent = "$" + total.toFixed(2);
+});
+
+function generateInvoice() {
+
+  // Build line items table manually (inputs → text)
+  let rowsHTML = "";
+  document.querySelectorAll("#itemsBody tr").forEach(row => {
+    const desc = row.querySelector(".desc").value || "";
+    const hours = row.querySelector(".hours").value || "";
+    const rate = row.querySelector(".rate").value || "";
+    const amount = row.querySelector(".amount").textContent || "$0.00";
+
+    rowsHTML += `
+      <tr>
+        <td>${desc}</td>
+        <td class="center">${hours}</td>
+        <td class="right">${rate}</td>
+        <td class="right">${amount}</td>
+      </tr>
+    `;
+  });
+
+  const invoiceHTML = `
+    <h1 style="text-align:right;">INVOICE</h1>
+
+    <pre>${document.getElementById("yourInfo").value}</pre>
+
+    <h3>Invoice Details</h3>
+    <p><strong>Invoice #:</strong> ${document.getElementById("invoiceNumber").value}</p>
+    <p><strong>Date:</strong> ${document.getElementById("invoiceDate").value}</p>
+
+    <h3>Bill To</h3>
+    <pre>${document.getElementById("billTo").value}</pre>
+
+    <h3>Line Items</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Description</th>
+          <th class="center">Hours</th>
+          <th class="right">Rate</th>
+          <th class="right">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rowsHTML}
+      </tbody>
+    </table>
+
+    <h3>Totals</h3>
+    <table>
+      <tr><td class="right">Subtotal:</td><td class="right">${document.getElementById("subtotal").textContent}</td></tr>
+      <tr><td class="right">Discount:</td><td class="right">$${document.getElementById("discount").value}</td></tr>
+      <tr><td class="right">Tax:</td><td class="right">$${document.getElementById("tax").value}</td></tr>
+      <tr><td class="right"><strong>Total:</strong></td><td class="right"><strong>${document.getElementById("total").textContent}</strong></td></tr>
+    </table>
+
+    <h3>Notes</h3>
+    <pre>${document.getElementById("message").value}</pre>
+  `;
+
+  document.getElementById("invoiceArea").innerHTML = invoiceHTML;
+  document.getElementById("invoiceArea").style.display = "block";
+
+  window.print();
+}
+
+</script>
+
+</body>
+</html>
+`
