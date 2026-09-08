@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>8-Year Payment Dashboard</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background: #f5f7fa;
+        margin: 0;
+        padding: 20px;
+        color: #333;
+    }
+    h1 {
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    .year-selector {
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    select {
+        padding: 10px;
+        font-size: 16px;
+        border-radius: 8px;
+    }
+    .dashboard {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 30px;
+        max-width: 1000px;
+        margin: auto;
+    }
+    .card {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        text-align: center;
+    }
+    .progress-ring {
+        width: 150px;
+        height: 150px;
+        margin: auto;
+    }
+    .month-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+    }
+    .month {
+        padding: 15px;
+        background: #e3e7ef;
+        border-radius: 8px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+    .month.paid {
+        background: #4caf50;
+        color: white;
+    }
+    .year-status {
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        gap: 10px;
+        margin-top: 20px;
+    }
+    .year-box {
+        padding: 15px;
+        border-radius: 8px;
+        background: #ccc;
+        font-weight: bold;
+    }
+    .year-box.partial {
+        background: #ffcc00;
+    }
+    .year-box.complete {
+        background: #4caf50;
+        color: white;
+    }
+</style>
+</head>
+<body>
+
+<h1>8-Year Payment Dashboard</h1>
+
+<div class="year-selector">
+    <label>Select Year: </label>
+    <select id="yearSelect" onchange="changeYear()"></select>
+</div>
+
+<div class="dashboard">
+
+    <!-- Progress Ring -->
+    <div class="card">
+        <h2 id="yearTitle">Year 1 Progress</h2>
+        <svg class="progress-ring">
+            <circle cx="75" cy="75" r="65" stroke="#ddd" stroke-width="10" fill="none"></circle>
+            <circle id="progressCircle" cx="75" cy="75" r="65" stroke="#4caf50" stroke-width="10" fill="none"
+                stroke-dasharray="408" stroke-dashoffset="408" stroke-linecap="round"></circle>
+        </svg>
+        <h3 id="percentText">0% Complete</h3>
+    </div>
+
+    <!-- Totals -->
+    <div class="card">
+        <h2>Totals</h2>
+        <h3 id="paidAmount">$0 Paid This Year</h3>
+        <h3 id="remainingAmount">$12,000 Remaining This Year</h3>
+    </div>
+
+    <!-- Month Grid -->
+    <div class="card" style="grid-column: span 2;">
+        <h2>Monthly Breakdown</h2>
+        <div class="month-grid" id="monthGrid"></div>
+    </div>
+
+    <!-- Year Status -->
+    <div class="card" style="grid-column: span 2;">
+        <h2>Year Completion Status</h2>
+        <div class="year-status" id="yearStatus"></div>
+    </div>
+
+</div>
+
+<script>
+    const totalYears = 8;
+    const monthsPerYear = 12;
+    const paymentAmount = 1000;
+
+    // Load saved data or create new
+    let payments = JSON.parse(localStorage.getItem("paymentsData")) ||
+        Array.from({ length: totalYears }, () =>
+            Array.from({ length: monthsPerYear }, () => false)
+        );
+
+    const monthNames = [
+        "January","February","March","April","May","June",
+        "July","August","September","October","November","December"
+    ];
+
+    const yearSelect = document.getElementById("yearSelect");
+    const monthGrid = document.getElementById("monthGrid");
+    const yearStatus = document.getElementById("yearStatus");
+
+    let currentYear = 0;
+
+    function saveData() {
+        localStorage.setItem("paymentsData", JSON.stringify(payments));
+    }
+
+    function init() {
+        for (let i = 1; i <= totalYears; i++) {
+            let option = document.createElement("option");
+            option.value = i - 1;
+            option.text = "Year " + i;
+            yearSelect.appendChild(option);
+        }
+
+        for (let i = 1; i <= totalYears; i++) {
+            let div = document.createElement("div");
+            div.className = "year-box";
+            div.innerText = "Year " + i;
+            yearStatus.appendChild(div);
+        }
+
+        buildMonthGrid();
+        updateDashboard();
+    }
+
+    function buildMonthGrid() {
+        monthGrid.innerHTML = "";
+        for (let i = 0; i < monthsPerYear; i++) {
+            let div = document.createElement("div");
+            div.className = "month";
+            div.innerText = `${monthNames[i]} (Year ${currentYear + 1})`;
+            div.onclick = () => togglePayment(i);
+            monthGrid.appendChild(div);
+        }
+    }
+
+    function togglePayment(monthIndex) {
+        payments[currentYear][monthIndex] = !payments[currentYear][monthIndex];
+        saveData();
+        updateDashboard();
+    }
+
+    function changeYear() {
+        currentYear = parseInt(yearSelect.value);
+        buildMonthGrid();
+        updateDashboard();
+    }
+
+    function updateDashboard() {
+        let paidMonths = payments[currentYear].filter(p => p).length;
+        let percent = (paidMonths / monthsPerYear) * 100;
+
+        document.getElementById("yearTitle").innerText = `Year ${currentYear + 1} Progress`;
+        document.getElementById("percentText").innerText = percent.toFixed(0) + "% Complete";
+
+        let circle = document.getElementById("progressCircle");
+        let offset = 408 - (408 * (percent / 100));
+        circle.style.strokeDashoffset = offset;
+
+        // Per-year totals
+        let yearPaid = paidMonths * paymentAmount;
+        let yearRemaining = (monthsPerYear - paidMonths) * paymentAmount;
+
+        document.getElementById("paidAmount").innerText = "$" + yearPaid + " Paid This Year";
+        document.getElementById("remainingAmount").innerText = "$" + yearRemaining + " Remaining This Year";
+
+        let months = document.querySelectorAll(".month");
+        months.forEach((m, index) => {
+            if (payments[currentYear][index]) {
+                m.classList.add("paid");
+            } else {
+                m.classList.remove("paid");
+            }
+        });
+
+        updateYearStatus();
+    }
+
+    function updateYearStatus() {
+        let boxes = document.querySelectorAll(".year-box");
+
+        boxes.forEach((box, yearIndex) => {
+            let paid = payments[yearIndex].filter(p => p).length;
+
+            box.classList.remove("complete", "partial");
+
+            if (paid === 12) {
+                box.classList.add("complete");
+            } else if (paid > 0) {
+                box.classList.add("partial");
+            }
+        });
+    }
+
+    init();
+</script>
+
+</body>
+</html>
